@@ -1,0 +1,29 @@
+{
+  "name": "@google/gemini-grpc-server",
+  "version": "0.1.0",
+  "description": "gRPC server for Gemini CLI",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc && npm run build:proto",
+    "build:proto": "npm run build:proto:js",
+    "build:proto:js": "node ./scripts/generate-ts-from-proto.mjs",
+    "preflight": "npm run build && npm run test && npm run lint && npm run typecheck",
+    "lint": "eslint . --ext .ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@google/gemini-cli-core": "file:../core",
+    "@grpc/grpc-js": "^1.9.13",
+    "@grpc/proto-loader": "^0.7.10",
+    "google-protobuf": "^3.21.2"
+  },
+  "devDependencies": {
+    "@types/google-protobuf": "^3.15.12",
+    "grpc-tools": "^1.12.4",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.2",
+    "eslint": "^8.56.0",
+    "protoc-gen-ts": "^0.8.6"
+  }
+}

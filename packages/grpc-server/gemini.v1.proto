@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package gemini.v1;
+
+import "google/protobuf/struct.proto";
+
+// The primary service for interacting with the remote Gemini CLI.
+service GeminiService {
+  // Chat starts a bi-directional stream for a conversation.
+  rpc Chat(stream ClientRequest) returns (stream ServerResponse);
+}
+
+// ClientRequest is a message sent from the client to the server.
+message ClientRequest {
+  oneof request {
+    StartRequest start_request = 1;
+    string prompt = 2;
+  }
+}
+
+// ServerResponse is a message sent from the server to the client.
+message ServerResponse {
+  oneof response {
+    SessionInfo session_info = 1;
+    TextResponse text_response = 2;
+    ThoughtResponse thought_response = 3;
+    ToolStartedResponse tool_started = 4;
+    ToolEndedResponse tool_ended = 5;
+    ErrorResponse error = 6;
+  }
+}
+
+// Matches the structure of `ConfigParameters` for initializing a session.
+message StartRequest {
+  // Optional: User-provided session ID to resume a previous session.
+  string session_id = 1;
+  // The initial user prompt.
+  string prompt = 2;
+  // The model to use for the session (e.g., "gemini-1.5-pro-latest").
+  string model = 4;
+  // The approval mode for dangerous tools. Defaults to REJECT_DANGEROUS_TOOLS.
+  ApprovalMode approval_mode = 5;
+  // Optional: List of core tools to enable.
+  repeated string core_tools = 6;
+  // Optional: List of tools to explicitly disable.
+  repeated string exclude_tools = 7;
+  // Optional: Advanced configuration options.
+  google.protobuf.Struct advanced_config = 8;
+}
+
+enum ApprovalMode {
+  APPROVAL_MODE_UNSPECIFIED = 0;
+  // The server will reject any tool that requires user confirmation.
+  REJECT_DANGEROUS_TOOLS = 1;
+  // The server will automatically approve all tool executions.
+  // Use with extreme caution.
+  AUTO_APPROVE = 2;
+}
+
+// SessionInfo provides the client with the session ID.
+message SessionInfo {
+  string session_id = 1;
+}
+
+// TextResponse contains a chunk of a text response from the model.
+message TextResponse {
+  string content = 1;
+}
+
+// ThoughtResponse contains the model's reasoning for its next action.
+message ThoughtResponse {
+    string thought = 1;
+}
+
+// ToolStartedResponse informs the client that a tool call has begun.
+message ToolStartedResponse {
+    string name = 1;
+    google.protobuf.Struct args = 2;
+}
+
+// ToolEndedResponse informs the client that a tool call has finished.
+message ToolEndedResponse {
+    string name = 1;
+    string result_summary = 2; // A brief summary of the result
+}
+
+// ErrorResponse contains details about an error that occurred on the server.
+message ErrorResponse {
+  string message = 1;
+  int32 code = 2; // Optional: An internal error code.
+}
