@@ -3,6 +3,12 @@ import * as protoLoader from '@grpc/proto-loader';
 import { gemini } from './proto/gemini.v1';
 import { SessionManager } from './SessionManager';
 
+// Basic logger for demonstration. In a production environment, consider a dedicated logging library.
+const logger = {
+  info: (...args: any[]) => console.log(`[INFO] ${new Date().toISOString()}`, ...args),
+  error: (...args: any[]) => console.error(`[ERROR] ${new Date().toISOString()}`, ...args),
+};
+
 const PROTO_PATH = __dirname + '/../gemini.v1.proto';
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
@@ -37,11 +43,11 @@ function chat(call: grpc.ServerDuplexStream<gemini.v1.ClientRequest, gemini.v1.S
   });
 
   call.on('end', () => {
-    console.log('Client disconnected');
+    logger.info('Client disconnected');
   });
 
   call.on('error', (err) => {
-    console.error('Stream error:', err);
+    logger.error('Stream error:', err);
   });
 }
 
@@ -51,12 +57,18 @@ function main() {
     Chat: chat,
   });
 
+  // TODO: Implement authentication via gRPC interceptors.
+  // Example: server.use(authInterceptor);
+
+  // TODO: Implement TLS for secure communication.
+  // Example: grpc.ServerCredentials.createSsl(private_key, certificate_chain);
+
   server.bindAsync('0.0.0.0:50051', grpc.ServerCredentials.createInsecure(), (err, port) => {
     if (err) {
-      console.error('Server bind failed:', err);
+      logger.error('Server bind failed:', err);
       return;
     }
-    console.log(`Server running at http://0.0.0.0:${port}`);
+    logger.info(`Server running at http://0.0.0.0:${port}`);
     server.start();
   });
 }
