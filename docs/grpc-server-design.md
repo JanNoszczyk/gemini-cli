@@ -10,8 +10,8 @@ The server will be a self-contained component that builds upon the `@google/gemi
 
 The architecture is a client-server model:
 
-*   **gRPC Server**: A persistent application in a Docker container, managing `gemini-cli` sessions.
-*   **gRPC Client**: A lightweight client communicating over a bi-directional stream.
+- **gRPC Server**: A persistent application in a Docker container, managing `gemini-cli` sessions.
+- **gRPC Client**: A lightweight client communicating over a bi-directional stream.
 
 ## 3. gRPC Service Definition (`gemini.v1.proto`)
 
@@ -117,52 +117,52 @@ The server will be implemented in a new `packages/grpc-server` directory, with a
 
 ### 4.1. Session Management (`SessionManager.ts`)
 
-*   A `SessionManager` class will manage a `Map<string, GeminiSession>`.
-*   On receiving a `StartRequest`, it will:
-    1.  Generate a new `session_id` if one is not provided.
-    2.  Create a `ConfigParameters` object by mapping the fields from the `StartRequest` message, enforcing secure defaults (see 4.3).
-    3.  Instantiate a `Config` object from these parameters.
-    4.  Create a new `GeminiSession` instance, passing the `Config` object to it.
-    5.  Store the session and return the `session_id` to the client in a `SessionInfo` message.
+- A `SessionManager` class will manage a `Map<string, GeminiSession>`.
+- On receiving a `StartRequest`, it will:
+  1.  Generate a new `session_id` if one is not provided.
+  2.  Create a `ConfigParameters` object by mapping the fields from the `StartRequest` message, enforcing secure defaults (see 4.3).
+  3.  Instantiate a `Config` object from these parameters.
+  4.  Create a new `GeminiSession` instance, passing the `Config` object to it.
+  5.  Store the session and return the `session_id` to the client in a `SessionInfo` message.
 
 ### 4.2. Chat Session Logic (`GeminiSession.ts`)
 
 This class will **compose, not reimplement**, the core logic.
 
-*   **Constructor**:
-    *   Accepts a fully initialized `Config` object.
-    *   Uses the `Config` object to get an instance of `GeminiClient` and then a `GeminiChat` instance.
-*   **`handlePrompt(prompt: string, stream: ServerStream)` method**:
-    *   This method will call `this.geminiChat.sendMessageStream()` and orchestrate the conversation.
-    *   It will listen for `Thought` events and send `ThoughtResponse` messages.
-    *   It will use the existing `executeToolCall` function from `@google/gemini-cli-core`.
-    *   **ApprovalMode Enforcement**: Before calling `executeToolCall`, it will check if the tool requires confirmation. If it does and the session's `ApprovalMode` is `REJECT_DANGEROUS_TOOLS`, it will intercept the call, not execute it, and instead return an error to the model.
+- **Constructor**:
+  - Accepts a fully initialized `Config` object.
+  - Uses the `Config` object to get an instance of `GeminiClient` and then a `GeminiChat` instance.
+- **`handlePrompt(prompt: string, stream: ServerStream)` method**:
+  - This method will call `this.geminiChat.sendMessageStream()` and orchestrate the conversation.
+  - It will listen for `Thought` events and send `ThoughtResponse` messages.
+  - It will use the existing `executeToolCall` function from `@google/gemini-cli-core`.
+  - **ApprovalMode Enforcement**: Before calling `executeToolCall`, it will check if the tool requires confirmation. If it does and the session's `ApprovalMode` is `REJECT_DANGEROUS_TOOLS`, it will intercept the call, not execute it, and instead return an error to the model.
 
 ### 4.3. Configuration and Security
 
-*   **Server-Side Defaults**: The server will establish a baseline `ConfigParameters` object with production-safe defaults:
-    *   **ApprovalMode**: The default will be `REJECT_DANGEROUS_TOOLS`.
-    *   **Sandboxing**: Enforced by default.
-    *   **File System**: The default `targetDir` will be a temporary, isolated directory created for each session.
-*   **Client Overrides**: The client's `StartRequest` will be used to override these defaults. The server will validate all overrides.
-*   **Authentication & TLS**: The server will use interceptors for token-based auth and require TLS for all connections.
+- **Server-Side Defaults**: The server will establish a baseline `ConfigParameters` object with production-safe defaults:
+  - **ApprovalMode**: The default will be `REJECT_DANGEROUS_TOOLS`.
+  - **Sandboxing**: Enforced by default.
+  - **File System**: The default `targetDir` will be a temporary, isolated directory created for each session.
+- **Client Overrides**: The client's `StartRequest` will be used to override these defaults. The server will validate all overrides.
+- **Authentication & TLS**: The server will use interceptors for token-based auth and require TLS for all connections.
 
 ## 5. Implementation Plan
 
 The phased implementation plan is now finalized:
 
 1.  **Phase 1: Project Setup**
-    *   Create the `packages/grpc-server` directory.
-    *   Define the final `gemini.v1.proto`.
-    *   Generate the TypeScript code from the proto file.
+    - Create the `packages/grpc-server` directory.
+    - Define the final `gemini.v1.proto`.
+    - Generate the TypeScript code from the proto file.
 2.  **Phase 2: Core Integration**
-    *   Implement `SessionManager` to correctly create `Config` objects, enforcing the default `ApprovalMode`.
-    *   Implement `GeminiSession` to use the `GeminiChat` object.
-    *   Create a basic client to test the end-to-end flow.
+    - Implement `SessionManager` to correctly create `Config` objects, enforcing the default `ApprovalMode`.
+    - Implement `GeminiSession` to use the `GeminiChat` object.
+    - Create a basic client to test the end-to-end flow.
 3.  **Phase 3: Tool Execution and Security**
-    *   Extend `GeminiSession` to handle the full tool-call loop, including the critical `ApprovalMode` check.
-    *   Implement the `ToolStartedResponse`, `ToolEndedResponse`, and `ThoughtResponse` messages.
+    - Extend `GeminiSession` to handle the full tool-call loop, including the critical `ApprovalMode` check.
+    - Implement the `ToolStartedResponse`, `ToolEndedResponse`, and `ThoughtResponse` messages.
 4.  **Phase 4: Production Hardening**
-    *   Create the `Dockerfile` for the server.
-    *   Implement and enforce server-side sandboxing, auth, and TLS.
-    *   Add comprehensive logging, error handling, and tests.
+    - Create the `Dockerfile` for the server.
+    - Implement and enforce server-side sandboxing, auth, and TLS.
+    - Add comprehensive logging, error handling, and tests.
