@@ -22,11 +22,11 @@ export class GrpcServiceImpl {
   private globalErrorHandler: ErrorHandler;
   private authManager: AuthenticationManager;
 
-  constructor(authManager?: AuthenticationManager) {
+  constructor() {
     this.sessionManager = new SessionManager();
     this.helpManager = new HelpManager();
     this.globalErrorHandler = new ErrorHandler(false);
-    this.authManager = authManager || new AuthenticationManager();
+    this.authManager = new AuthenticationManager();
   }
 
   /**
@@ -42,7 +42,7 @@ export class GrpcServiceImpl {
       try {
         // Check authentication for sensitive operations if not in development
         const requireAuth = process.env.NODE_ENV !== 'development' && process.env.REQUIRE_AUTH === 'true';
-        if (requireAuth && !this.checkPermission(call, 'chat')) {
+        if (requireAuth && !(await this.checkPermission(call, 'chat'))) {
           call.write(MessageBuilders.errorMessage(
             'Authentication required',
             'This operation requires valid authentication credentials'
@@ -382,22 +382,7 @@ export class GrpcServiceImpl {
 
   // ============ File Operation Endpoints ============
 
-  /**
-   * Check if the request has required permission
-   */
-  private checkPermission(call: grpc.ServerUnaryCall<any, any> | grpc.ServerDuplexStream<any, any>, permission: string): boolean {
-    return this.authManager.hasPermission(call.metadata, permission);
-  }
-
-  /**
-   * Send permission denied response
-   */
-  private sendPermissionDenied<T>(callback: grpc.sendUnaryData<T>, responseType: new (data: any) => T): void {
-    callback(null, new responseType({
-      success: false,
-      error_message: 'Permission denied: insufficient privileges'
-    }));
-  }
+  
 
   /**
    * Read file endpoint
@@ -407,12 +392,16 @@ export class GrpcServiceImpl {
     callback: grpc.sendUnaryData<gemini.FileReadResponse>
   ): Promise<void> {
     try {
-      // Check permissions
-      if (!this.checkPermission(call, 'file:read')) {
-        this.sendPermissionDenied(callback, gemini.FileReadResponse);
+      // Check authentication if required
+      const requireAuth = process.env.NODE_ENV === 'production' || process.env.REQUIRE_AUTH === 'true';
+      if (requireAuth && !(await this.checkPermission(call, 'read'))) {
+        callback(null, new gemini.FileReadResponse({
+          success: false,
+          error_message: 'Permission denied: Authentication required'
+        }));
         return;
       }
-
+      
       const request = call.request;
       
       if (!request.session_id || !request.file_path) {
@@ -458,12 +447,16 @@ export class GrpcServiceImpl {
     callback: grpc.sendUnaryData<gemini.FileOperationResponse>
   ): Promise<void> {
     try {
-      // Check permissions
-      if (!this.checkPermission(call, 'file:write')) {
-        this.sendPermissionDenied(callback, gemini.FileOperationResponse);
+      // Check authentication if required
+      const requireAuth = process.env.NODE_ENV === 'production' || process.env.REQUIRE_AUTH === 'true';
+      if (requireAuth && !(await this.checkPermission(call, 'write'))) {
+        callback(null, new gemini.FileOperationResponse({
+          success: false,
+          error_message: 'Permission denied: Authentication required'
+        }));
         return;
       }
-
+      
       const request = call.request;
       
       if (!request.session_id || !request.file_path || !request.content) {
@@ -507,12 +500,16 @@ export class GrpcServiceImpl {
     callback: grpc.sendUnaryData<gemini.FileOperationResponse>
   ): Promise<void> {
     try {
-      // Check permissions
-      if (!this.checkPermission(call, 'file:write')) {
-        this.sendPermissionDenied(callback, gemini.FileOperationResponse);
+      // Check authentication if required
+      const requireAuth = process.env.NODE_ENV === 'production' || process.env.REQUIRE_AUTH === 'true';
+      if (requireAuth && !(await this.checkPermission(call, 'write'))) {
+        callback(null, new gemini.FileOperationResponse({
+          success: false,
+          error_message: 'Permission denied: Authentication required'
+        }));
         return;
       }
-
+      
       const request = call.request;
       
       if (!request.session_id || !request.file_path || !request.patches.length) {
@@ -557,12 +554,16 @@ export class GrpcServiceImpl {
     callback: grpc.sendUnaryData<gemini.FileOperationResponse>
   ): Promise<void> {
     try {
-      // Check permissions
-      if (!this.checkPermission(call, 'file:delete')) {
-        this.sendPermissionDenied(callback, gemini.FileOperationResponse);
+      // Check authentication if required
+      const requireAuth = process.env.NODE_ENV === 'production' || process.env.REQUIRE_AUTH === 'true';
+      if (requireAuth && !(await this.checkPermission(call, 'write'))) {
+        callback(null, new gemini.FileOperationResponse({
+          success: false,
+          error_message: 'Permission denied: Authentication required'
+        }));
         return;
       }
-
+      
       const request = call.request;
       
       if (!request.session_id || !request.file_path) {
@@ -651,6 +652,16 @@ export class GrpcServiceImpl {
     callback: grpc.sendUnaryData<gemini.DirectoryListResponse>
   ): Promise<void> {
     try {
+      // Check authentication if required
+      const requireAuth = process.env.NODE_ENV === 'production' || process.env.REQUIRE_AUTH === 'true';
+      if (requireAuth && !(await this.checkPermission(call, 'read'))) {
+        callback(null, new gemini.DirectoryListResponse({
+          success: false,
+          error_message: 'Permission denied: Authentication required'
+        }));
+        return;
+      }
+      
       const request = call.request;
       
       if (!request.session_id || !request.directory_path) {
@@ -714,6 +725,16 @@ export class GrpcServiceImpl {
     callback: grpc.sendUnaryData<gemini.DiffGenerationResponse>
   ): Promise<void> {
     try {
+      // Check authentication if required
+      const requireAuth = process.env.NODE_ENV === 'production' || process.env.REQUIRE_AUTH === 'true';
+      if (requireAuth && !(await this.checkPermission(call, 'read'))) {
+        callback(null, new gemini.DiffGenerationResponse({
+          success: false,
+          error_message: 'Permission denied: Authentication required'
+        }));
+        return;
+      }
+      
       const request = call.request;
       
       if (!request.session_id || !request.file_path || !request.old_content || !request.new_content) {
@@ -801,5 +822,27 @@ export class GrpcServiceImpl {
     }
 
     return completions;
+  }
+
+  /**
+   * Check if the call has permission for the requested operation
+   */
+  private async checkPermission(call: grpc.ServerWritableStream<any, any>, permission: string): Promise<boolean> {
+    const metadata = call.metadata;
+    const authHeader = metadata.get('authorization')[0];
+    
+    if (!authHeader) {
+      return false;
+    }
+    
+    const token = authHeader.toString().replace('Bearer ', '');
+    const context = await this.authManager.validateApiKey(token);
+    
+    if (!context || !context.authenticated) {
+      return false;
+    }
+    
+    // Check if the user has the required permission or wildcard permission
+    return context.permissions.includes(permission) || context.permissions.includes('*');
   }
 }

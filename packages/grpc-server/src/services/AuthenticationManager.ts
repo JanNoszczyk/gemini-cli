@@ -34,7 +34,11 @@ export class AuthenticationManager extends EventEmitter {
   private sessionTokens = new Map<string, { apiKeyId: string; expiresAt: Date }>();
   
   private readonly defaultPermissions = [
-    '*', // Grant all permissions by default in tests
+    'chat',
+    'file:read',
+    'file:write',
+    'session:read',
+    'session:write',
   ];
 
   constructor() {
@@ -42,7 +46,7 @@ export class AuthenticationManager extends EventEmitter {
     
     // Create a default API key for development/testing
     if (process.env.NODE_ENV !== 'production') {
-      this.createApiKey('default-key', 'Default Key', this.defaultPermissions);
+      this.createApiKey('default-key', 'Default Key', ['*']);
     }
   }
 
@@ -149,7 +153,7 @@ export class AuthenticationManager extends EventEmitter {
     try {
       const authContextStr = metadata.get('auth-context')[0] as string;
       if (!authContextStr) {
-        return process.env.NODE_ENV !== 'production';
+        return false;
       }
 
       const authContext: AuthenticationContext = JSON.parse(authContextStr);

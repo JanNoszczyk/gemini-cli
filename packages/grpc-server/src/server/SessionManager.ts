@@ -144,6 +144,10 @@ export class SessionManager {
     };
 
     this.sessions.set(sessionId, session);
+    
+    // Initialize session tracking for analytics
+    this.sessionMonitor.initializeSession(sessionId);
+    
     return sessionId;
   }
 
