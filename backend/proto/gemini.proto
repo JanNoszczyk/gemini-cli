@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package gemini;
+
+option go_package = "github.com/gemini-cli/backend/proto";
+
+// The Gemini service provides streaming chat functionality
+service GeminiService {
+  // Creates a new chat session
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+  
+  // Streaming chat - client sends prompts, server streams responses
+  rpc Chat(stream ChatRequest) returns (stream ChatResponse);
+  
+  // Ends a session
+  rpc EndSession(EndSessionRequest) returns (EndSessionResponse);
+  
+  // Gets session status
+  rpc GetSessionStatus(GetSessionStatusRequest) returns (GetSessionStatusResponse);
+}
+
+// Request to create a new session
+message CreateSessionRequest {
+  string user_id = 1;
+  string workspace_path = 2;
+  string api_key = 3;
+}
+
+// Response for session creation
+message CreateSessionResponse {
+  string session_id = 1;
+  bool success = 2;
+  string error = 3;
+}
+
+// Chat request from client
+message ChatRequest {
+  string session_id = 1;
+  string prompt = 2;
+}
+
+// Chat response from server (streamed)
+message ChatResponse {
+  string session_id = 1;
+  
+  oneof content {
+    TextContent text = 2;
+    ToolCallRequest tool_call = 3;
+    ToolCallResponse tool_result = 4;
+    ErrorContent error = 5;
+    ThoughtContent thought = 6;
+  }
+}
+
+// Text content
+message TextContent {
+  string text = 1;
+}
+
+// Tool call request
+message ToolCallRequest {
+  string tool_name = 1;
+  string arguments = 2;
+}
+
+// Tool call response
+message ToolCallResponse {
+  string tool_name = 1;
+  string result = 2;
+  bool success = 3;
+}
+
+// Error content
+message ErrorContent {
+  string message = 1;
+  string code = 2;
+}
+
+// Thought content (for Gemini 2.0+)
+message ThoughtContent {
+  string thought = 1;
+}
+
+// Request to end a session
+message EndSessionRequest {
+  string session_id = 1;
+}
+
+// Response for ending a session
+message EndSessionResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+// Request to get session status
+message GetSessionStatusRequest {
+  string session_id = 1;
+}
+
+// Response with session status
+message GetSessionStatusResponse {
+  string session_id = 1;
+  string user_id = 2;
+  bool active = 3;
+  int64 created_at = 4;
+  int64 last_activity = 5;
+}
