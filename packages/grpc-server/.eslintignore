@@ -1,5 +1,0 @@
-src/proto/**
-dist/**
-node_modules/**
-*.config.ts
-*.config.js

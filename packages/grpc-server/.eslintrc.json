@@ -1,9 +1,0 @@
-{
-  "extends": "../../eslint.config.js",
-  "ignorePatterns": [
-    "src/proto/**/*",
-    "dist/**/*",
-    "node_modules/**/*",
-    "vitest.config.ts"
-  ]
-}
