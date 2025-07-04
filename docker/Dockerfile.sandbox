@@ -1,0 +1,64 @@
+# Production-ready Gemini CLI sandbox with multi-user support
+FROM node:20-slim
+
+ARG SANDBOX_NAME="gemini-cli-sandbox"
+ARG CLI_VERSION_ARG
+ENV SANDBOX="$SANDBOX_NAME"
+ENV CLI_VERSION=$CLI_VERSION_ARG
+
+# Install minimal set of packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    make \
+    g++ \
+    git \
+    curl \
+    jq \
+    ripgrep \
+    ca-certificates \
+    # Additional tools for better container experience
+    vim \
+    less \
+    procps \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for running Gemini
+RUN useradd -m -u 1001 -s /bin/bash gemini
+
+# Set up npm global directory for non-root user
+ENV NPM_CONFIG_PREFIX=/home/gemini/.npm-global
+ENV PATH=$PATH:/home/gemini/.npm-global/bin
+
+# Copy and install Gemini CLI packages
+COPY packages/cli/dist/google-gemini-cli-*.tgz /tmp/gemini-cli.tgz
+COPY packages/core/dist/google-gemini-cli-core-*.tgz /tmp/gemini-core.tgz
+
+# Switch to non-root user
+USER gemini
+WORKDIR /home/gemini
+
+# Install Gemini CLI globally
+RUN npm install -g /tmp/gemini-cli.tgz /tmp/gemini-core.tgz
+
+# Clean up
+USER root
+RUN rm -f /tmp/gemini-{cli,core}.tgz
+
+# Security hardening
+RUN chmod 700 /home/gemini
+
+# Switch back to non-root user
+USER gemini
+
+# Set working directory for user workspace
+WORKDIR /workspace
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD gemini --version || exit 1
+
+# Default entrypoint
+ENTRYPOINT ["gemini"]
+CMD ["--help"]
