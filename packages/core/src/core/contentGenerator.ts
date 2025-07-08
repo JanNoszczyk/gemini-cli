@@ -16,6 +16,7 @@ import {
 import { createCodeAssistContentGenerator } from '../code_assist/codeAssist.js';
 import { DEFAULT_GEMINI_MODEL } from '../config/models.js';
 import { getEffectiveModel } from './modelCheck.js';
+import { BackendProxyContentGenerator } from './backendProxyContentGenerator.js';
 
 /**
  * Interface abstracting the core functionalities for generating content and counting tokens.
@@ -39,6 +40,7 @@ export enum AuthType {
   USE_GEMINI = 'gemini-api-key',
   USE_VERTEX_AI = 'vertex-ai',
   CLOUD_SHELL = 'cloud-shell',
+  USE_BACKEND_PROXY = 'use_backend_proxy',
 }
 
 export type ContentGeneratorConfig = {
@@ -46,6 +48,9 @@ export type ContentGeneratorConfig = {
   apiKey?: string;
   vertexai?: boolean;
   authType?: AuthType | undefined;
+  backendProxyUrl?: string;
+  userAuthToken?: string;
+  tokenRefreshCallback?: () => Promise<string>;
 };
 
 export async function createContentGeneratorConfig(
@@ -65,10 +70,11 @@ export async function createContentGeneratorConfig(
     authType,
   };
 
-  // If we are using Google auth or we are in Cloud Shell, there is nothing else to validate for now
+  // If we are using Google auth, Cloud Shell, or Backend Proxy, there is nothing else to validate for now
   if (
     authType === AuthType.LOGIN_WITH_GOOGLE ||
-    authType === AuthType.CLOUD_SHELL
+    authType === AuthType.CLOUD_SHELL ||
+    authType === AuthType.USE_BACKEND_PROXY
   ) {
     return contentGeneratorConfig;
   }
@@ -112,6 +118,14 @@ export async function createContentGenerator(
       'User-Agent': `GeminiCLI/${version} (${process.platform}; ${process.arch})`,
     },
   };
+  
+  if (config.authType === AuthType.USE_BACKEND_PROXY) {
+    return new BackendProxyContentGenerator({
+      ...config,
+      sessionId,
+    });
+  }
+  
   if (
     config.authType === AuthType.LOGIN_WITH_GOOGLE ||
     config.authType === AuthType.CLOUD_SHELL

@@ -17,6 +17,7 @@ import {
   DEFAULT_GEMINI_EMBEDDING_MODEL,
   FileDiscoveryService,
   TelemetryTarget,
+  AuthType,
 } from '@google/gemini-cli-core';
 import { Settings } from './settings.js';
 
@@ -155,6 +156,12 @@ export async function loadHierarchicalGeminiMemory(
     logger.debug(
       `CLI: Delegating hierarchical memory load to server for CWD: ${currentWorkingDirectory}`,
     );
+    // Log backend proxy configuration if enabled
+    if (process.env.AI_PROXY_MODE === 'true') {
+      logger.debug('CLI: Backend proxy mode enabled');
+      logger.debug(`CLI: Backend proxy URL: ${process.env.AI_PROXY_URL || 'not set'}`);
+      logger.debug(`CLI: User auth token: ${process.env.USER_AUTH_TOKEN ? '[SET]' : '[NOT SET]'}`);
+    }
   }
   // Directly call the server function.
   // The server function will use its own homedir() for the global path.
@@ -214,6 +221,10 @@ export async function loadCliConfig(
 
   const sandboxConfig = await loadSandboxConfig(settings, argv);
 
+  // Check for backend proxy configuration
+  const useBackendProxy = process.env.AI_PROXY_MODE === 'true';
+  const authType = useBackendProxy ? AuthType.USE_BACKEND_PROXY : undefined;
+  
   return new Config({
     sessionId,
     embeddingModel: DEFAULT_GEMINI_EMBEDDING_MODEL,
@@ -262,6 +273,11 @@ export async function loadCliConfig(
     bugCommand: settings.bugCommand,
     model: argv.model!,
     extensionContextFilePaths,
+    // Backend proxy configuration
+    authType,
+    backendProxyUrl: process.env.AI_PROXY_URL,
+    userAuthToken: process.env.USER_AUTH_TOKEN,
+    provider: process.env.DEFAULT_PROVIDER as 'gemini' | 'claude' | 'auto' | undefined,
   });
 }
 

@@ -1,0 +1,35 @@
+name: Publish Package
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'packages/core/**' ]
+  release:
+    types: [ published ]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        registry-url: 'https://npm.pkg.github.com'
+        scope: '@jannoszczyk'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build packages
+      run: npm run build
+    
+    - name: Publish to GitHub Package Registry
+      run: |
+        cd packages/core
+        npm publish
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

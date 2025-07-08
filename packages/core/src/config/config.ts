@@ -133,6 +133,13 @@ export interface ConfigParameters {
   bugCommand?: BugCommandSettings;
   model: string;
   extensionContextFilePaths?: string[];
+  // Backend proxy fields
+  authType?: AuthType;
+  backendProxyUrl?: string;
+  userAuthToken?: string;
+  // Multi-provider support
+  provider?: 'gemini' | 'claude' | 'auto';
+  modelMappings?: Record<string, string>;
 }
 
 export class Config {
@@ -173,6 +180,13 @@ export class Config {
   private readonly extensionContextFilePaths: string[];
   private modelSwitchedDuringSession: boolean = false;
   flashFallbackHandler?: FlashFallbackHandler;
+  // Backend proxy fields
+  private readonly authType: AuthType | undefined;
+  private readonly backendProxyUrl: string | undefined;
+  private readonly userAuthToken: string | undefined;
+  // Multi-provider support
+  private readonly provider: 'gemini' | 'claude' | 'auto' | undefined;
+  private readonly modelMappings: Record<string, string> | undefined;
 
   constructor(params: ConfigParameters) {
     this.sessionId = params.sessionId;
@@ -214,6 +228,13 @@ export class Config {
     this.bugCommand = params.bugCommand;
     this.model = params.model;
     this.extensionContextFilePaths = params.extensionContextFilePaths ?? [];
+    // Backend proxy fields
+    this.authType = params.authType;
+    this.backendProxyUrl = params.backendProxyUrl;
+    this.userAuthToken = params.userAuthToken;
+    // Multi-provider support
+    this.provider = params.provider;
+    this.modelMappings = params.modelMappings;
 
     if (params.contextFileName) {
       setGeminiMdFilename(params.contextFileName);
@@ -250,6 +271,11 @@ export class Config {
       this.model,
       authMethod,
     );
+    // Add backend proxy fields if using backend proxy auth
+    if (authMethod === AuthType.USE_BACKEND_PROXY) {
+      this.contentGeneratorConfig.backendProxyUrl = this.backendProxyUrl;
+      this.contentGeneratorConfig.userAuthToken = this.userAuthToken;
+    }
 
     this.geminiClient = new GeminiClient(this);
     await this.geminiClient.initialize(this.contentGeneratorConfig);
@@ -444,6 +470,26 @@ export class Config {
 
   getExtensionContextFilePaths(): string[] {
     return this.extensionContextFilePaths;
+  }
+
+  getAuthType(): AuthType | undefined {
+    return this.authType;
+  }
+
+  getBackendProxyUrl(): string | undefined {
+    return this.backendProxyUrl;
+  }
+
+  getUserAuthToken(): string | undefined {
+    return this.userAuthToken;
+  }
+
+  getProvider(): 'gemini' | 'claude' | 'auto' | undefined {
+    return this.provider;
+  }
+
+  getModelMappings(): Record<string, string> | undefined {
+    return this.modelMappings;
   }
 
   async getGitService(): Promise<GitService> {

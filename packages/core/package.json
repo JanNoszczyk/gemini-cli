@@ -1,11 +1,15 @@
 {
-  "name": "@google/gemini-cli-core",
-  "version": "0.1.9",
-  "description": "Gemini CLI Core",
+  "name": "@jannoszczyk/gemini-cli-core",
+  "version": "0.1.9-backend-proxy.1",
+  "description": "Gemini CLI Core with Backend Proxy Support",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/google-gemini/gemini-cli.git"
+    "url": "git+https://github.com/jannoszczyk/gemini-cli-jan.git"
   },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "private": false,
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

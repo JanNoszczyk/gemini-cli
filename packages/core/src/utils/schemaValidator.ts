@@ -5,9 +5,12 @@
  */
 
 import { Schema } from '@google/genai';
-import * as ajv from 'ajv';
+import { default as Ajv } from 'ajv';
 
-const ajValidator = new ajv.Ajv();
+const ajValidator = new Ajv({
+  allErrors: true,
+  verbose: true,
+});
 
 /**
  * Simple utility to validate objects against JSON Schemas
@@ -27,7 +30,26 @@ export class SchemaValidator {
     const validate = ajValidator.compile(this.toObjectSchema(schema));
     const valid = validate(data);
     if (!valid && validate.errors) {
-      return ajValidator.errorsText(validate.errors, { dataVar: 'params' });
+      // Create error message manually to match expected format
+      const error = validate.errors[0];
+      if (error.keyword === 'required') {
+        return `params must have required property '${error.params.missingProperty}'`;
+      } else if (error.keyword === 'type') {
+        const path = error.instancePath ? `params${error.instancePath}` : 'params';
+        return `${path} must be ${error.schema}`;
+      } else if (error.keyword === 'pattern') {
+        const path = error.instancePath ? `params${error.instancePath}` : 'params';
+        return `${path} must match pattern "${error.schema}"`;
+      } else if (error.keyword === 'minItems') {
+        const path = error.instancePath ? `params${error.instancePath}` : 'params';
+        return `${path} must NOT have fewer than ${error.schema} items`;
+      } else if (error.keyword === 'minLength') {
+        const path = error.instancePath ? `params${error.instancePath}` : 'params';
+        return `${path} must NOT have fewer than ${error.schema} characters`;
+      } else {
+        // Fallback to basic error message
+        return `Validation error: ${error.message}`;
+      }
     }
     return null;
   }
